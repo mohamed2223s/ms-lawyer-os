@@ -11,6 +11,969 @@ workflows:
           if [ -f "ms_lawyer_os.zip" ]; then
             unzip -o ms_lawyer_os.zip
           fi
+      - name: Add Hearings module files
+        script: |
+          cd ms_lawyer_os
+          mkdir -p lib/presentation/screens/hearings
+          mkdir -p lib/data/repositories lib/data/models lib/domain/entities lib/presentation/widgets
+          cat > lib/domain/entities/hearing.dart << 'DARTEOF0'
+          import 'package:equatable/equatable.dart';
+          
+          /// كيان الجلسة - يمثل جلسة محكمة مرتبطة (اختياريًا) بقضية
+          class Hearing extends Equatable {
+            final String id;
+            final String officeId;
+            final String? caseId;
+            final String caseTitle;
+            final String clientName;
+            final String court;
+            final String location;
+            final DateTime date;
+            final String notes;
+            final String result;
+            final String requiredActions;
+            final DateTime createdAt;
+            final DateTime updatedAt;
+            final bool isSynced;
+            final bool isDeleted;
+          
+            const Hearing({
+              required this.id,
+              required this.officeId,
+              this.caseId,
+              required this.caseTitle,
+              required this.clientName,
+              required this.court,
+              required this.location,
+              required this.date,
+              this.notes = '',
+              this.result = '',
+              this.requiredActions = '',
+              required this.createdAt,
+              required this.updatedAt,
+              this.isSynced = false,
+              this.isDeleted = false,
+            });
+          
+            Hearing copyWith({
+              String? caseId,
+              String? caseTitle,
+              String? clientName,
+              String? court,
+              String? location,
+              DateTime? date,
+              String? notes,
+              String? result,
+              String? requiredActions,
+              DateTime? updatedAt,
+              bool? isSynced,
+              bool? isDeleted,
+            }) {
+              return Hearing(
+                id: id,
+                officeId: officeId,
+                caseId: caseId ?? this.caseId,
+                caseTitle: caseTitle ?? this.caseTitle,
+                clientName: clientName ?? this.clientName,
+                court: court ?? this.court,
+                location: location ?? this.location,
+                date: date ?? this.date,
+                notes: notes ?? this.notes,
+                result: result ?? this.result,
+                requiredActions: requiredActions ?? this.requiredActions,
+                createdAt: createdAt,
+                updatedAt: updatedAt ?? DateTime.now(),
+                isSynced: isSynced ?? this.isSynced,
+                isDeleted: isDeleted ?? this.isDeleted,
+              );
+            }
+          
+            @override
+            List<Object?> get props => [
+                  id,
+                  officeId,
+                  caseId,
+                  caseTitle,
+                  clientName,
+                  court,
+                  location,
+                  date,
+                  notes,
+                  result,
+                  requiredActions,
+                  createdAt,
+                  updatedAt,
+                  isSynced,
+                  isDeleted,
+                ];
+          }
+          DARTEOF0
+          cat > lib/data/models/hearing_model.dart << 'DARTEOF1'
+          import 'package:cloud_firestore/cloud_firestore.dart';
+          import 'package:hive/hive.dart';
+          import '../../domain/entities/hearing.dart';
+          
+          class HearingModel {
+            final String id;
+            final String officeId;
+            final String? caseId;
+            final String caseTitle;
+            final String clientName;
+            final String court;
+            final String location;
+            final DateTime date;
+            final String notes;
+            final String result;
+            final String requiredActions;
+            final DateTime createdAt;
+            final DateTime updatedAt;
+            final bool isSynced;
+            final bool isDeleted;
+          
+            HearingModel({
+              required this.id,
+              required this.officeId,
+              this.caseId,
+              required this.caseTitle,
+              required this.clientName,
+              required this.court,
+              required this.location,
+              required this.date,
+              this.notes = '',
+              this.result = '',
+              this.requiredActions = '',
+              required this.createdAt,
+              required this.updatedAt,
+              this.isSynced = false,
+              this.isDeleted = false,
+            });
+          
+            factory HearingModel.fromEntity(Hearing h) => HearingModel(
+                  id: h.id,
+                  officeId: h.officeId,
+                  caseId: h.caseId,
+                  caseTitle: h.caseTitle,
+                  clientName: h.clientName,
+                  court: h.court,
+                  location: h.location,
+                  date: h.date,
+                  notes: h.notes,
+                  result: h.result,
+                  requiredActions: h.requiredActions,
+                  createdAt: h.createdAt,
+                  updatedAt: h.updatedAt,
+                  isSynced: h.isSynced,
+                  isDeleted: h.isDeleted,
+                );
+          
+            Hearing toEntity() => Hearing(
+                  id: id,
+                  officeId: officeId,
+                  caseId: caseId,
+                  caseTitle: caseTitle,
+                  clientName: clientName,
+                  court: court,
+                  location: location,
+                  date: date,
+                  notes: notes,
+                  result: result,
+                  requiredActions: requiredActions,
+                  createdAt: createdAt,
+                  updatedAt: updatedAt,
+                  isSynced: isSynced,
+                  isDeleted: isDeleted,
+                );
+          
+            factory HearingModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+              final data = doc.data()!;
+              return HearingModel(
+                id: doc.id,
+                officeId: data['officeId'] as String,
+                caseId: data['caseId'] as String?,
+                caseTitle: data['caseTitle'] as String? ?? '',
+                clientName: data['clientName'] as String? ?? '',
+                court: data['court'] as String? ?? '',
+                location: data['location'] as String? ?? '',
+                date: (data['date'] as Timestamp).toDate(),
+                notes: data['notes'] as String? ?? '',
+                result: data['result'] as String? ?? '',
+                requiredActions: data['requiredActions'] as String? ?? '',
+                createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                isSynced: true,
+                isDeleted: data['isDeleted'] as bool? ?? false,
+              );
+            }
+          
+            Map<String, dynamic> toFirestore() => {
+                  'officeId': officeId,
+                  'caseId': caseId,
+                  'caseTitle': caseTitle,
+                  'clientName': clientName,
+                  'court': court,
+                  'location': location,
+                  'date': Timestamp.fromDate(date),
+                  'notes': notes,
+                  'result': result,
+                  'requiredActions': requiredActions,
+                  'createdAt': Timestamp.fromDate(createdAt),
+                  'updatedAt': Timestamp.fromDate(updatedAt),
+                  'isDeleted': isDeleted,
+                };
+          
+            Map<String, dynamic> toHiveMap() => {
+                  'id': id,
+                  'officeId': officeId,
+                  'caseId': caseId,
+                  'caseTitle': caseTitle,
+                  'clientName': clientName,
+                  'court': court,
+                  'location': location,
+                  'date': date.toIso8601String(),
+                  'notes': notes,
+                  'result': result,
+                  'requiredActions': requiredActions,
+                  'createdAt': createdAt.toIso8601String(),
+                  'updatedAt': updatedAt.toIso8601String(),
+                  'isSynced': isSynced,
+                  'isDeleted': isDeleted,
+                };
+          
+            factory HearingModel.fromHiveMap(Map<dynamic, dynamic> map) => HearingModel(
+                  id: map['id'] as String,
+                  officeId: map['officeId'] as String,
+                  caseId: map['caseId'] as String?,
+                  caseTitle: map['caseTitle'] as String? ?? '',
+                  clientName: map['clientName'] as String? ?? '',
+                  court: map['court'] as String? ?? '',
+                  location: map['location'] as String? ?? '',
+                  date: DateTime.parse(map['date'] as String),
+                  notes: map['notes'] as String? ?? '',
+                  result: map['result'] as String? ?? '',
+                  requiredActions: map['requiredActions'] as String? ?? '',
+                  createdAt: DateTime.parse(map['createdAt'] as String),
+                  updatedAt: DateTime.parse(map['updatedAt'] as String),
+                  isSynced: map['isSynced'] as bool? ?? false,
+                  isDeleted: map['isDeleted'] as bool? ?? false,
+                );
+          
+            HearingModel copyWith({bool? isSynced, bool? isDeleted, DateTime? updatedAt}) => HearingModel(
+                  id: id,
+                  officeId: officeId,
+                  caseId: caseId,
+                  caseTitle: caseTitle,
+                  clientName: clientName,
+                  court: court,
+                  location: location,
+                  date: date,
+                  notes: notes,
+                  result: result,
+                  requiredActions: requiredActions,
+                  createdAt: createdAt,
+                  updatedAt: updatedAt ?? this.updatedAt,
+                  isSynced: isSynced ?? this.isSynced,
+                  isDeleted: isDeleted ?? this.isDeleted,
+                );
+          }
+          
+          class HearingHiveBox {
+            static const String boxName = 'hearings_box';
+            static Box get box => Hive.box(boxName);
+          }
+          DARTEOF1
+          cat > lib/data/repositories/hearing_repository.dart << 'DARTEOF2'
+          import 'dart:async';
+          import 'package:cloud_firestore/cloud_firestore.dart';
+          import 'package:uuid/uuid.dart';
+          import '../../core/constants/firestore_paths.dart';
+          import '../../core/services/connectivity_service.dart';
+          import '../../core/services/sync_queue_service.dart';
+          import '../../domain/entities/hearing.dart';
+          import '../models/hearing_model.dart';
+          
+          class HearingRepository {
+            HearingRepository({required this.officeId});
+          
+            final String officeId;
+            final _uuid = const Uuid();
+            final _firestore = FirebaseFirestore.instance;
+          
+            StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _remoteSub;
+          
+            CollectionReference<Map<String, dynamic>> get _collection =>
+                _firestore.collection(FirestorePaths.hearingsCol(officeId));
+          
+            void startRemoteSync() {
+              _remoteSub?.cancel();
+              _remoteSub = _collection.snapshots().listen((snapshot) {
+                for (final change in snapshot.docChanges) {
+                  _mergeIntoLocal(HearingModel.fromFirestore(change.doc));
+                }
+              }, onError: (_) {});
+            }
+          
+            void stopRemoteSync() {
+              _remoteSub?.cancel();
+              _remoteSub = null;
+            }
+          
+            void _mergeIntoLocal(HearingModel remote) {
+              final box = HearingHiveBox.box;
+              final localRaw = box.get(remote.id);
+              if (localRaw != null) {
+                final local = HearingModel.fromHiveMap(localRaw as Map);
+                if (!local.isSynced && local.updatedAt.isAfter(remote.updatedAt)) return;
+              }
+              box.put(remote.id, remote.copyWith(isSynced: true).toHiveMap());
+            }
+          
+            List<Hearing> getAllLocal() {
+              final box = HearingHiveBox.box;
+              return box.values
+                  .map((raw) => HearingModel.fromHiveMap(raw as Map))
+                  .where((m) => !m.isDeleted)
+                  .map((m) => m.toEntity())
+                  .toList()
+                ..sort((a, b) => a.date.compareTo(b.date));
+            }
+          
+            Stream<List<Hearing>> watchAll() async* {
+              yield getAllLocal();
+              yield* HearingHiveBox.box.watch().asyncMap((_) => getAllLocal());
+            }
+          
+            List<Hearing> getForDay(DateTime day) {
+              return getAllLocal()
+                  .where((h) => h.date.year == day.year && h.date.month == day.month && h.date.day == day.day)
+                  .toList();
+            }
+          
+            Map<DateTime, List<Hearing>> getGroupedByDay() {
+              final map = <DateTime, List<Hearing>>{};
+              for (final h in getAllLocal()) {
+                final key = DateTime(h.date.year, h.date.month, h.date.day);
+                map.putIfAbsent(key, () => []).add(h);
+              }
+              return map;
+            }
+          
+            List<Hearing> getUpcoming({int limit = 5}) {
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              return getAllLocal().where((h) => !h.date.isBefore(today)).take(limit).toList();
+            }
+          
+            Future<Hearing> addHearing({
+              String? caseId,
+              required String caseTitle,
+              required String clientName,
+              required String court,
+              required String location,
+              required DateTime date,
+              String notes = '',
+            }) async {
+              final now = DateTime.now();
+              final entity = Hearing(
+                id: _uuid.v4(),
+                officeId: officeId,
+                caseId: caseId,
+                caseTitle: caseTitle,
+                clientName: clientName,
+                court: court,
+                location: location,
+                date: date,
+                notes: notes,
+                createdAt: now,
+                updatedAt: now,
+                isSynced: false,
+              );
+              await _persist(entity);
+              return entity;
+            }
+          
+            Future<void> _persist(Hearing entity) async {
+              final model = HearingModel.fromEntity(entity);
+              await HearingHiveBox.box.put(model.id, model.toHiveMap());
+              await SyncQueueService.instance.enqueue(
+                collectionPath: FirestorePaths.hearingsCol(officeId),
+                docId: model.id,
+                operation: SyncOperation.update,
+                payload: model.toFirestore(),
+              );
+            }
+          
+            Future<Hearing> updateHearing(Hearing entity) async {
+              final updated = entity.copyWith(updatedAt: DateTime.now(), isSynced: false);
+              await _persist(updated);
+              return updated;
+            }
+          
+            Future<void> deleteHearing(String id) async {
+              final raw = HearingHiveBox.box.get(id);
+              if (raw == null) return;
+              final model = HearingModel.fromHiveMap(raw as Map).copyWith(isDeleted: true, updatedAt: DateTime.now(), isSynced: false);
+              await HearingHiveBox.box.put(id, model.toHiveMap());
+              await SyncQueueService.instance.enqueue(
+                collectionPath: FirestorePaths.hearingsCol(officeId),
+                docId: id,
+                operation: SyncOperation.delete,
+                payload: {'isDeleted': true, 'updatedAt': Timestamp.now()},
+              );
+            }
+          
+            Future<bool> isOnline() => ConnectivityService.instance.isOnline();
+          }
+          DARTEOF2
+          cat > lib/presentation/widgets/case_picker_sheet.dart << 'DARTEOF3'
+          import 'package:flutter/material.dart';
+          import '../../core/constants/app_colors.dart';
+          import '../../data/repositories/case_repository.dart';
+          import '../../domain/entities/case.dart';
+          
+          Future<LawCase?> showCasePicker(BuildContext context, CaseRepository repository) {
+            return showModalBottomSheet<LawCase>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppColors.surfaceDark,
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+              builder: (ctx) => _CasePickerSheet(repository: repository),
+            );
+          }
+          
+          class _CasePickerSheet extends StatefulWidget {
+            final CaseRepository repository;
+            const _CasePickerSheet({required this.repository});
+          
+            @override
+            State<_CasePickerSheet> createState() => _CasePickerSheetState();
+          }
+          
+          class _CasePickerSheetState extends State<_CasePickerSheet> {
+            String _query = '';
+          
+            @override
+            Widget build(BuildContext context) {
+              final cases = widget.repository.search(_query);
+              return Padding(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.75,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 12),
+                      const Text('اختر القضية', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.gold)),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: TextField(
+                          onChanged: (v) => setState(() => _query = v),
+                          decoration: const InputDecoration(hintText: 'ابحث عن قضية...', prefixIcon: Icon(Icons.search)),
+                        ),
+                      ),
+                      Expanded(
+                        child: cases.isEmpty
+                            ? const Center(child: Text('لا توجد قضايا مطابقة', textAlign: TextAlign.center))
+                            : ListView.builder(
+                                itemCount: cases.length,
+                                itemBuilder: (context, index) {
+                                  final c = cases[index];
+                                  return ListTile(
+                                    leading: const Icon(Icons.gavel_outlined, color: AppColors.gold),
+                                    title: Text(c.title, overflow: TextOverflow.ellipsis),
+                                    subtitle: Text('${c.clientName} • ${c.court}'),
+                                    onTap: () => Navigator.pop(context, c),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          }
+          DARTEOF3
+          cat > lib/presentation/screens/hearings/hearing_form_screen.dart << 'DARTEOF4'
+          import 'package:flutter/material.dart';
+          import '../../../core/constants/app_colors.dart';
+          import '../../../data/repositories/case_repository.dart';
+          import '../../../data/repositories/hearing_repository.dart';
+          import '../../../domain/entities/case.dart';
+          import '../../../domain/entities/hearing.dart';
+          import '../../widgets/case_picker_sheet.dart';
+          
+          class HearingFormScreen extends StatefulWidget {
+            final HearingRepository hearingRepository;
+            final CaseRepository caseRepository;
+            final Hearing? existing;
+            final DateTime? initialDate;
+          
+            const HearingFormScreen({
+              super.key,
+              required this.hearingRepository,
+              required this.caseRepository,
+              this.existing,
+              this.initialDate,
+            });
+          
+            @override
+            State<HearingFormScreen> createState() => _HearingFormScreenState();
+          }
+          
+          class _HearingFormScreenState extends State<HearingFormScreen> {
+            final _formKey = GlobalKey<FormState>();
+            late final TextEditingController _clientCtrl;
+            late final TextEditingController _courtCtrl;
+            late final TextEditingController _locationCtrl;
+            late final TextEditingController _notesCtrl;
+            late final TextEditingController _caseTitleCtrl;
+          
+            LawCase? _linkedCase;
+            late DateTime _date;
+            late TimeOfDay _time;
+            bool _saving = false;
+          
+            bool get _isEditing => widget.existing != null;
+          
+            @override
+            void initState() {
+              super.initState();
+              final h = widget.existing;
+              _clientCtrl = TextEditingController(text: h?.clientName ?? '');
+              _courtCtrl = TextEditingController(text: h?.court ?? '');
+              _locationCtrl = TextEditingController(text: h?.location ?? '');
+              _notesCtrl = TextEditingController(text: h?.notes ?? '');
+              _caseTitleCtrl = TextEditingController(text: h?.caseTitle ?? '');
+              final initial = h?.date ?? widget.initialDate ?? DateTime.now();
+              _date = DateTime(initial.year, initial.month, initial.day);
+              _time = TimeOfDay(hour: initial.hour == 0 ? 10 : initial.hour, minute: initial.minute);
+            }
+          
+            @override
+            void dispose() {
+              _clientCtrl.dispose();
+              _courtCtrl.dispose();
+              _locationCtrl.dispose();
+              _notesCtrl.dispose();
+              _caseTitleCtrl.dispose();
+              super.dispose();
+            }
+          
+            Future<void> _pickCase() async {
+              final c = await showCasePicker(context, widget.caseRepository);
+              if (c != null) {
+                setState(() {
+                  _linkedCase = c;
+                  _caseTitleCtrl.text = c.title;
+                  _clientCtrl.text = c.clientName;
+                  _courtCtrl.text = c.court;
+                });
+              }
+            }
+          
+            Future<void> _pickDate() async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _date,
+                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+              );
+              if (picked != null) setState(() => _date = picked);
+            }
+          
+            Future<void> _pickTime() async {
+              final picked = await showTimePicker(context: context, initialTime: _time);
+              if (picked != null) setState(() => _time = picked);
+            }
+          
+            Future<void> _save() async {
+              if (!_formKey.currentState!.validate()) return;
+              setState(() => _saving = true);
+              try {
+                final fullDate = DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
+                if (_isEditing) {
+                  final updated = widget.existing!.copyWith(
+                    caseId: _linkedCase?.id,
+                    caseTitle: _caseTitleCtrl.text.trim(),
+                    clientName: _clientCtrl.text.trim(),
+                    court: _courtCtrl.text.trim(),
+                    location: _locationCtrl.text.trim(),
+                    date: fullDate,
+                    notes: _notesCtrl.text.trim(),
+                  );
+                  await widget.hearingRepository.updateHearing(updated);
+                } else {
+                  await widget.hearingRepository.addHearing(
+                    caseId: _linkedCase?.id,
+                    caseTitle: _caseTitleCtrl.text.trim(),
+                    clientName: _clientCtrl.text.trim(),
+                    court: _courtCtrl.text.trim(),
+                    location: _locationCtrl.text.trim(),
+                    date: fullDate,
+                    notes: _notesCtrl.text.trim(),
+                  );
+                }
+                if (mounted) Navigator.of(context).pop();
+              } finally {
+                if (mounted) setState(() => _saving = false);
+              }
+            }
+          
+            String _fmtDate(DateTime d) => '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+          
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: Text(_isEditing ? 'تعديل الجلسة' : 'جلسة جديدة')),
+                body: SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _pickCase,
+                            icon: const Icon(Icons.gavel_outlined),
+                            label: Text(_linkedCase == null ? 'ربط بقضية (اختياري)' : 'مرتبطة بـ: ${_linkedCase!.title}', overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _caseTitleCtrl,
+                            decoration: const InputDecoration(labelText: 'عنوان/موضوع الجلسة *', prefixIcon: Icon(Icons.description_outlined)),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _clientCtrl,
+                            decoration: const InputDecoration(labelText: 'اسم الموكل *', prefixIcon: Icon(Icons.person_outline)),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _courtCtrl,
+                            decoration: const InputDecoration(labelText: 'المحكمة *', prefixIcon: Icon(Icons.account_balance_outlined)),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _locationCtrl,
+                            decoration: const InputDecoration(labelText: 'المكان / العنوان', prefixIcon: Icon(Icons.location_on_outlined)),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: _pickDate,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InputDecorator(
+                                    decoration: const InputDecoration(labelText: 'التاريخ', prefixIcon: Icon(Icons.event_outlined)),
+                                    child: Text(_fmtDate(_date)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: _pickTime,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InputDecorator(
+                                    decoration: const InputDecoration(labelText: 'الوقت', prefixIcon: Icon(Icons.access_time)),
+                                    child: Text(_time.format(context)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _notesCtrl,
+                            maxLines: 3,
+                            decoration: const InputDecoration(labelText: 'ملاحظات / إجراءات مطلوبة', prefixIcon: Icon(Icons.note_outlined)),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: _saving ? null : _save,
+                            child: _saving
+                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.black))
+                                : Text(_isEditing ? 'حفظ التعديلات' : 'إضافة الجلسة'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
+          DARTEOF4
+          cat > lib/presentation/screens/hearings/hearings_calendar_screen.dart << 'DARTEOF5'
+          import 'package:flutter/material.dart';
+          import 'package:table_calendar/table_calendar.dart';
+          import '../../../core/constants/app_colors.dart';
+          import '../../../data/repositories/case_repository.dart';
+          import '../../../data/repositories/hearing_repository.dart';
+          import '../../../domain/entities/hearing.dart';
+          import 'hearing_form_screen.dart';
+          
+          class HearingsCalendarScreen extends StatefulWidget {
+            final HearingRepository hearingRepository;
+            final CaseRepository caseRepository;
+            const HearingsCalendarScreen({super.key, required this.hearingRepository, required this.caseRepository});
+          
+            @override
+            State<HearingsCalendarScreen> createState() => _HearingsCalendarScreenState();
+          }
+          
+          class _HearingsCalendarScreenState extends State<HearingsCalendarScreen> {
+            DateTime _focusedDay = DateTime.now();
+            DateTime _selectedDay = DateTime.now();
+            CalendarFormat _format = CalendarFormat.month;
+          
+            @override
+            void initState() {
+              super.initState();
+              widget.hearingRepository.startRemoteSync();
+            }
+          
+            @override
+            void dispose() {
+              widget.hearingRepository.stopRemoteSync();
+              super.dispose();
+            }
+          
+            String _fmtTime(DateTime d) {
+              final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+              final period = d.hour >= 12 ? 'م' : 'ص';
+              return '$h:${d.minute.toString().padLeft(2, '0')} $period';
+            }
+          
+            Future<void> _confirmDelete(Hearing h) async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('حذف الجلسة'),
+                  content: Text('هل تريد حذف جلسة "${h.caseTitle}"؟'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('حذف'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) await widget.hearingRepository.deleteHearing(h.id);
+            }
+          
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('الجلسات')),
+                body: SafeArea(
+                  child: StreamBuilder<List<Hearing>>(
+                    stream: widget.hearingRepository.watchAll(),
+                    builder: (context, snapshot) {
+                      final all = snapshot.data ?? widget.hearingRepository.getAllLocal();
+                      final grouped = <DateTime, List<Hearing>>{};
+                      for (final h in all) {
+                        final key = DateTime(h.date.year, h.date.month, h.date.day);
+                        grouped.putIfAbsent(key, () => []).add(h);
+                      }
+                      final selectedKey = DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+                      final dayHearings = (grouped[selectedKey] ?? [])..sort((a, b) => a.date.compareTo(b.date));
+          
+                      return Column(
+                        children: [
+                          TableCalendar<Hearing>(
+                            locale: 'ar',
+                            firstDay: DateTime.now().subtract(const Duration(days: 365 * 2)),
+                            lastDay: DateTime.now().add(const Duration(days: 365 * 2)),
+                            focusedDay: _focusedDay,
+                            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                            calendarFormat: _format,
+                            eventLoader: (day) => grouped[DateTime(day.year, day.month, day.day)] ?? [],
+                            onDaySelected: (selected, focused) => setState(() {
+                              _selectedDay = selected;
+                              _focusedDay = focused;
+                            }),
+                            onFormatChanged: (format) => setState(() => _format = format),
+                            onPageChanged: (focused) => _focusedDay = focused,
+                            startingDayOfWeek: StartingDayOfWeek.saturday,
+                            calendarStyle: const CalendarStyle(
+                              outsideDaysVisible: false,
+                              todayDecoration: BoxDecoration(color: AppColors.divider, shape: BoxShape.circle),
+                              selectedDecoration: BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                              selectedTextStyle: TextStyle(color: AppColors.black, fontWeight: FontWeight.w700),
+                              markerDecoration: BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                              weekendTextStyle: TextStyle(color: AppColors.textPrimaryDark),
+                              defaultTextStyle: TextStyle(color: AppColors.textPrimaryDark),
+                            ),
+                            headerStyle: const HeaderStyle(
+                              formatButtonVisible: true,
+                              titleCentered: true,
+                              formatButtonDecoration: BoxDecoration(color: AppColors.charcoal, borderRadius: BorderRadius.all(Radius.circular(8))),
+                              formatButtonTextStyle: TextStyle(color: AppColors.gold),
+                              titleTextStyle: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w700, fontSize: 16),
+                              leftChevronIcon: Icon(Icons.chevron_right, color: AppColors.gold),
+                              rightChevronIcon: Icon(Icons.chevron_left, color: AppColors.gold),
+                            ),
+                            daysOfWeekStyle: const DaysOfWeekStyle(weekdayStyle: TextStyle(color: AppColors.textSecondaryDark), weekendStyle: TextStyle(color: AppColors.textSecondaryDark)),
+                          ),
+                          const Divider(height: 1),
+                          Expanded(
+                            child: dayHearings.isEmpty
+                                ? const Center(
+                                    child: Text('لا توجد جلسات في هذا اليوم', style: TextStyle(color: AppColors.textSecondaryDark)),
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                                    itemCount: dayHearings.length,
+                                    itemBuilder: (context, index) {
+                                      final h = dayHearings[index];
+                                      return Card(
+                                        child: ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor: AppColors.gold.withOpacity(0.15),
+                                            child: Text(_fmtTime(h.date).split(' ')[0], style: const TextStyle(fontSize: 11, color: AppColors.gold, fontWeight: FontWeight.w700)),
+                                          ),
+                                          title: Text(h.caseTitle, style: const TextStyle(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+                                          subtitle: Text('${h.clientName} • ${h.court}${h.location.isNotEmpty ? ' • ${h.location}' : ''}\n${_fmtTime(h.date)}'),
+                                          isThreeLine: true,
+                                          trailing: IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                                            onPressed: () => _confirmDelete(h),
+                                          ),
+                                          onTap: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => HearingFormScreen(
+                                                hearingRepository: widget.hearingRepository,
+                                                caseRepository: widget.caseRepository,
+                                                existing: h,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                floatingActionButton: FloatingActionButton.extended(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HearingFormScreen(
+                        hearingRepository: widget.hearingRepository,
+                        caseRepository: widget.caseRepository,
+                        initialDate: _selectedDay,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('جلسة جديدة'),
+                ),
+              );
+            }
+          }
+          DARTEOF5
+          cat > lib/presentation/screens/app_shell.dart << 'DARTEOF6'
+          import 'package:flutter/material.dart';
+          import '../../core/constants/app_colors.dart';
+          import '../../data/repositories/auth_repository.dart';
+          import '../../data/repositories/case_repository.dart';
+          import '../../data/repositories/client_repository.dart';
+          import '../../data/repositories/hearing_repository.dart';
+          import 'cases/cases_list_screen.dart';
+          import 'clients/clients_list_screen.dart';
+          import 'dashboard/dashboard_screen.dart';
+          import 'hearings/hearings_calendar_screen.dart';
+          import 'settings/settings_screen.dart';
+          
+          class AppShell extends StatefulWidget {
+            final OfficeSession session;
+            const AppShell({super.key, required this.session});
+          
+            @override
+            State<AppShell> createState() => _AppShellState();
+          }
+          
+          class _AppShellState extends State<AppShell> {
+            int _index = 0;
+            late final ClientRepository _clientRepository;
+            late final CaseRepository _caseRepository;
+            late final HearingRepository _hearingRepository;
+          
+            @override
+            void initState() {
+              super.initState();
+              _clientRepository = ClientRepository(officeId: widget.session.officeId);
+              _caseRepository = CaseRepository(officeId: widget.session.officeId);
+              _hearingRepository = HearingRepository(officeId: widget.session.officeId);
+            }
+          
+            @override
+            Widget build(BuildContext context) {
+              final screens = [
+                DashboardScreen(clientRepository: _clientRepository, caseRepository: _caseRepository, session: widget.session),
+                ClientsListScreen(repository: _clientRepository, caseRepository: _caseRepository),
+                CasesListScreen(caseRepository: _caseRepository, clientRepository: _clientRepository),
+                HearingsCalendarScreen(hearingRepository: _hearingRepository, caseRepository: _caseRepository),
+                SettingsScreen(session: widget.session),
+              ];
+          
+              return Scaffold(
+                body: IndexedStack(index: _index, children: screens),
+                bottomNavigationBar: BottomNavigationBar(
+                  currentIndex: _index,
+                  onTap: (i) => setState(() => _index = i),
+                  type: BottomNavigationBarType.fixed,
+                  items: const [
+                    BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'الرئيسية'),
+                    BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'العملاء'),
+                    BottomNavigationBarItem(icon: Icon(Icons.gavel_outlined), activeIcon: Icon(Icons.gavel), label: 'القضايا'),
+                    BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'الجلسات'),
+                    BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
+                  ],
+                  selectedItemColor: AppColors.gold,
+                ),
+              );
+            }
+          }
+          DARTEOF6
+          cat > lib/main.dart << 'DARTEOF7'
+          import 'package:firebase_core/firebase_core.dart';
+          import 'package:flutter/material.dart';
+          import 'package:flutter_riverpod/flutter_riverpod.dart';
+          import 'package:intl/date_symbol_data_local.dart';
+          import 'app.dart';
+          import 'core/services/notification_service.dart';
+          import 'core/services/sync_queue_service.dart';
+          import 'data/local/hive_setup.dart';
+          import 'firebase_options.dart';
+          
+          Future<void> main() async {
+            WidgetsFlutterBinding.ensureInitialized();
+          
+            await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+            await HiveSetup.init();
+            await NotificationService.instance.init();
+            await initializeDateFormatting('ar');
+          
+            SyncQueueService.instance.startAutoSync();
+          
+            runApp(const ProviderScope(child: MsLawyerApp()));
+          }
+          DARTEOF7
       - name: Fix intl version constraint
         script: |
           cd ms_lawyer_os
