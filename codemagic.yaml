@@ -25,11 +25,11 @@ workflows:
           distributionPath=wrapper/dists
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.9-all.zip
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip
           GRADLEEOF
-          sed -i.bak "s/com.android.tools.build:gradle:8.3.0/com.android.tools.build:gradle:8.5.0/" android/build.gradle
+          sed -i.bak "s/com.android.tools.build:gradle:8.3.0/com.android.tools.build:gradle:8.7.0/" android/build.gradle
           rm -f android/build.gradle.bak
-          sed -i.bak 's/id "com.android.application" version "8.3.0" apply false/id "com.android.application" version "8.5.0" apply false/' android/settings.gradle
+          sed -i.bak 's/id "com.android.application" version "8.3.0" apply false/id "com.android.application" version "8.7.0" apply false/' android/settings.gradle
           rm -f android/settings.gradle.bak
       - name: Get Flutter packages
         script: |
