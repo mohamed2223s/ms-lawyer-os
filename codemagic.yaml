@@ -16,6 +16,21 @@ workflows:
           cd ms_lawyer_os
           sed -i.bak "s/intl: \^0.19.0/intl: ^0.20.2/" pubspec.yaml
           rm -f pubspec.yaml.bak
+      - name: Fix Gradle wrapper and AGP version
+        script: |
+          cd ms_lawyer_os
+          mkdir -p android/gradle/wrapper
+          cat > android/gradle/wrapper/gradle-wrapper.properties << 'GRADLEEOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.9-all.zip
+          GRADLEEOF
+          sed -i.bak "s/com.android.tools.build:gradle:8.3.0/com.android.tools.build:gradle:8.5.0/" android/build.gradle
+          rm -f android/build.gradle.bak
+          sed -i.bak 's/id "com.android.application" version "8.3.0" apply false/id "com.android.application" version "8.5.0" apply false/' android/settings.gradle
+          rm -f android/settings.gradle.bak
       - name: Get Flutter packages
         script: |
           cd ms_lawyer_os
