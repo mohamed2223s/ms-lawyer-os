@@ -1,0 +1,30 @@
+workflows:
+  android-apk:
+    name: MS Lawyer OS - Android APK
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Unzip project (if uploaded as a single zip file)
+        script: |
+          if [ -f "ms_lawyer_os.zip" ]; then
+            unzip -o ms_lawyer_os.zip
+          fi
+      - name: Get Flutter packages
+        script: |
+          cd ms_lawyer_os
+          flutter pub get
+      - name: Build release APK
+        script: |
+          cd ms_lawyer_os
+          flutter build apk --release
+    artifacts:
+      - ms_lawyer_os/build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com # غيّروا هذا لبريدكم لاستلام رابط تحميل الـ APK تلقائيًا
+        notify:
+          success: true
+          failure: true
