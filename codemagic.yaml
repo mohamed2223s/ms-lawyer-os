@@ -11,6 +11,10 @@ workflows:
           if [ -f "ms_lawyer_os.zip" ]; then
             unzip -o ms_lawyer_os.zip
           fi
+      - name: Fix intl version constraint
+        script: |
+          cd ms_lawyer_os
+          sed -i "s/intl: \^0.19.0/intl: ^0.20.2/" pubspec.yaml
       - name: Get Flutter packages
         script: |
           cd ms_lawyer_os
@@ -24,7 +28,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - user@example.com # غيّروا هذا لبريدكم لاستلام رابط تحميل الـ APK تلقائيًا
+          - user@example.com
         notify:
           success: true
           failure: true
