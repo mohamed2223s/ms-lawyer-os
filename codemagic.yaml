@@ -16,6 +16,11 @@ workflows:
           cd ms_lawyer_os
           sed -i.bak "s/intl: \^0.19.0/intl: ^0.20.2/" pubspec.yaml
           rm -f pubspec.yaml.bak
+      - name: Remove incompatible workmanager dependency
+        script: |
+          cd ms_lawyer_os
+          sed -i.bak "/workmanager: \^0.5.2/d" pubspec.yaml
+          rm -f pubspec.yaml.bak
       - name: Fix Gradle wrapper, AGP and Kotlin version
         script: |
           cd ms_lawyer_os
