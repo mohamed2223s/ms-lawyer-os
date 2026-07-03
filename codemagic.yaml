@@ -31,6 +31,10 @@ workflows:
           rm -f android/build.gradle.bak
           sed -i.bak 's/id "com.android.application" version "8.3.0" apply false/id "com.android.application" version "8.7.0" apply false/' android/settings.gradle
           rm -f android/settings.gradle.bak
+          sed -i.bak "s/kotlin_version = '1.9.22'/kotlin_version = '2.1.0'/" android/build.gradle
+          rm -f android/build.gradle.bak
+          sed -i.bak 's/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/id "org.jetbrains.kotlin.android" version "2.1.0" apply false/' android/settings.gradle
+          rm -f android/settings.gradle.bak
       - name: Get Flutter packages
         script: |
           cd ms_lawyer_os
