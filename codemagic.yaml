@@ -70,6 +70,12 @@ workflows:
           cp /tmp/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp /tmp/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp /tmp/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+      - name: Disable code minification to avoid R8 missing-class errors
+        script: |
+          cd ms_lawyer_os
+          sed -i.bak "s/minifyEnabled true/minifyEnabled false/" android/app/build.gradle
+          sed -i.bak "s/shrinkResources true/shrinkResources false/" android/app/build.gradle
+          rm -f android/app/build.gradle.bak
       - name: Get Flutter packages
         script: |
           cd ms_lawyer_os
