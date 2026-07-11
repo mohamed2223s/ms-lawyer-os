@@ -1044,7 +1044,7 @@ workflows:
       - name: Set up release signing keystore
         script: |
           cd ms_lawyer_os
-          echo $CM_KEYSTORE | base64 -d > android/app/mslawyeros-release.jks
+          echo $CM_KEYSTORE | base64 -d > android/mslawyeros-release.jks
           cat > android/key.properties << KEYEOF
           storePassword=$CM_KEYSTORE_PASSWORD
           keyPassword=$CM_KEY_PASSWORD
