@@ -5,6 +5,8 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      groups:
+        - keystore_credentials
     scripts:
       - name: Unzip project (if uploaded as a single zip file)
         script: |
@@ -1039,6 +1041,16 @@ workflows:
           sed -i.bak "s/minifyEnabled true/minifyEnabled false/" android/app/build.gradle
           sed -i.bak "s/shrinkResources true/shrinkResources false/" android/app/build.gradle
           rm -f android/app/build.gradle.bak
+      - name: Set up release signing keystore
+        script: |
+          cd ms_lawyer_os
+          echo $CM_KEYSTORE | base64 -d > android/app/mslawyeros-release.jks
+          cat > android/key.properties << KEYEOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=mslawyeros-release.jks
+          KEYEOF
       - name: Get Flutter packages
         script: |
           cd ms_lawyer_os
