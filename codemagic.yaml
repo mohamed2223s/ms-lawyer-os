@@ -897,6 +897,7 @@ workflows:
           import '../../data/repositories/case_repository.dart';
           import '../../data/repositories/client_repository.dart';
           import '../../data/repositories/hearing_repository.dart';
+          import '../../data/repositories/finance_repository.dart';
           import 'cases/cases_list_screen.dart';
           import 'clients/clients_list_screen.dart';
           import 'dashboard/dashboard_screen.dart';
@@ -916,6 +917,7 @@ workflows:
             late final ClientRepository _clientRepository;
             late final CaseRepository _caseRepository;
             late final HearingRepository _hearingRepository;
+            late final FinanceRepository _financeRepository;
           
             @override
             void initState() {
@@ -923,14 +925,15 @@ workflows:
               _clientRepository = ClientRepository(officeId: widget.session.officeId);
               _caseRepository = CaseRepository(officeId: widget.session.officeId);
               _hearingRepository = HearingRepository(officeId: widget.session.officeId);
+              _financeRepository = FinanceRepository(officeId: widget.session.officeId);
             }
           
             @override
             Widget build(BuildContext context) {
               final screens = [
-                DashboardScreen(clientRepository: _clientRepository, caseRepository: _caseRepository, session: widget.session),
-                ClientsListScreen(repository: _clientRepository, caseRepository: _caseRepository),
-                CasesListScreen(caseRepository: _caseRepository, clientRepository: _clientRepository),
+                DashboardScreen(clientRepository: _clientRepository, caseRepository: _caseRepository, financeRepository: _financeRepository, session: widget.session),
+                ClientsListScreen(repository: _clientRepository, caseRepository: _caseRepository, financeRepository: _financeRepository),
+                CasesListScreen(caseRepository: _caseRepository, clientRepository: _clientRepository, financeRepository: _financeRepository),
                 HearingsCalendarScreen(hearingRepository: _hearingRepository, caseRepository: _caseRepository),
                 SettingsScreen(session: widget.session),
               ];
@@ -978,13 +981,6 @@ workflows:
             runApp(const ProviderScope(child: MsLawyerApp()));
           }
           DARTEOF7
-      - name: Debug - verify uploaded source matches
-        script: |
-          echo "---- FULL app_shell.dart content ----"
-          cat ms_lawyer_os/lib/presentation/screens/app_shell.dart
-          echo "---- END OF FILE ----"
-          echo "---- md5 of app_shell.dart ----"
-          md5sum ms_lawyer_os/lib/presentation/screens/app_shell.dart || md5 ms_lawyer_os/lib/presentation/screens/app_shell.dart
       - name: Fix intl version constraint
         script: |
           cd ms_lawyer_os
