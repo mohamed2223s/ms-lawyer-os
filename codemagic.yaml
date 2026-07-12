@@ -10,9 +10,11 @@ workflows:
     scripts:
       - name: Unzip project (if uploaded as a single zip file)
         script: |
+          rm -rf ms_lawyer_os
           if [ -f "ms_lawyer_os.zip" ]; then
             unzip -o ms_lawyer_os.zip
           fi
+          find ms_lawyer_os -exec touch {} + 2>/dev/null || true
       - name: Add Hearings module files
         script: |
           cd ms_lawyer_os
@@ -1058,6 +1060,7 @@ workflows:
       - name: Build release APK
         script: |
           cd ms_lawyer_os
+          flutter clean
           flutter build apk --release
     artifacts:
       - ms_lawyer_os/build/app/outputs/flutter-apk/*.apk
