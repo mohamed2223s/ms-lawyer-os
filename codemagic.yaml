@@ -980,13 +980,11 @@ workflows:
           DARTEOF7
       - name: Debug - verify uploaded source matches
         script: |
-          echo "---- app_shell.dart content check ----"
-          grep -c "financeRepository" ms_lawyer_os/lib/presentation/screens/app_shell.dart || echo "NOT FOUND - OLD FILE"
-          echo "---- file size and hash ----"
-          ls -la ms_lawyer_os.zip
-          md5sum ms_lawyer_os.zip || md5 ms_lawyer_os.zip
-          echo "---- pubspec first line ----"
-          head -1 ms_lawyer_os/pubspec.yaml
+          echo "---- FULL app_shell.dart content ----"
+          cat ms_lawyer_os/lib/presentation/screens/app_shell.dart
+          echo "---- END OF FILE ----"
+          echo "---- md5 of app_shell.dart ----"
+          md5sum ms_lawyer_os/lib/presentation/screens/app_shell.dart || md5 ms_lawyer_os/lib/presentation/screens/app_shell.dart
       - name: Fix intl version constraint
         script: |
           cd ms_lawyer_os
