@@ -22,7 +22,39 @@ workflows:
           mkdir -p lib/data/repositories lib/data/models lib/domain/entities lib/presentation/widgets
           cat > lib/domain/entities/hearing.dart << 'DARTEOF0'
           import 'package:equatable/equatable.dart';
-          
+
+          /// سجل تأجيل جلسة - يحفظ التاريخ السابق وسبب التأجيل، لبناء تسلسل الجلسات كاملاً
+          class HearingPostponement extends Equatable {
+            final String id;
+            final DateTime previousDate;
+            final String reason;
+            final DateTime postponedAt;
+
+            const HearingPostponement({
+              required this.id,
+              required this.previousDate,
+              required this.reason,
+              required this.postponedAt,
+            });
+
+            Map<String, dynamic> toMap() => {
+                  'id': id,
+                  'previousDate': previousDate.toIso8601String(),
+                  'reason': reason,
+                  'postponedAt': postponedAt.toIso8601String(),
+                };
+
+            factory HearingPostponement.fromMap(Map map) => HearingPostponement(
+                  id: map['id'] as String,
+                  previousDate: DateTime.parse(map['previousDate'] as String),
+                  reason: map['reason'] as String? ?? '',
+                  postponedAt: DateTime.parse(map['postponedAt'] as String),
+                );
+
+            @override
+            List<Object?> get props => [id, previousDate, reason, postponedAt];
+          }
+
           /// كيان الجلسة - يمثل جلسة محكمة مرتبطة (اختياريًا) بقضية
           class Hearing extends Equatable {
             final String id;
@@ -36,11 +68,12 @@ workflows:
             final String notes;
             final String result;
             final String requiredActions;
+            final List<HearingPostponement> postponements;
             final DateTime createdAt;
             final DateTime updatedAt;
             final bool isSynced;
             final bool isDeleted;
-          
+
             const Hearing({
               required this.id,
               required this.officeId,
@@ -53,12 +86,16 @@ workflows:
               this.notes = '',
               this.result = '',
               this.requiredActions = '',
+              this.postponements = const [],
               required this.createdAt,
               required this.updatedAt,
               this.isSynced = false,
               this.isDeleted = false,
             });
-          
+
+            /// رقم الجلسة الحالية في التسلسل (١ يعني الجلسة الأولى، وهكذا)
+            int get sequenceNumber => postponements.length + 1;
+
             Hearing copyWith({
               String? caseId,
               String? caseTitle,
@@ -69,6 +106,7 @@ workflows:
               String? notes,
               String? result,
               String? requiredActions,
+              List<HearingPostponement>? postponements,
               DateTime? updatedAt,
               bool? isSynced,
               bool? isDeleted,
@@ -85,13 +123,14 @@ workflows:
                 notes: notes ?? this.notes,
                 result: result ?? this.result,
                 requiredActions: requiredActions ?? this.requiredActions,
+                postponements: postponements ?? this.postponements,
                 createdAt: createdAt,
                 updatedAt: updatedAt ?? DateTime.now(),
                 isSynced: isSynced ?? this.isSynced,
                 isDeleted: isDeleted ?? this.isDeleted,
               );
             }
-          
+
             @override
             List<Object?> get props => [
                   id,
@@ -105,18 +144,20 @@ workflows:
                   notes,
                   result,
                   requiredActions,
+                  postponements,
                   createdAt,
                   updatedAt,
                   isSynced,
                   isDeleted,
                 ];
           }
+
           DARTEOF0
           cat > lib/data/models/hearing_model.dart << 'DARTEOF1'
           import 'package:cloud_firestore/cloud_firestore.dart';
           import 'package:hive/hive.dart';
           import '../../domain/entities/hearing.dart';
-          
+
           class HearingModel {
             final String id;
             final String officeId;
@@ -129,11 +170,12 @@ workflows:
             final String notes;
             final String result;
             final String requiredActions;
+            final List<HearingPostponement> postponements;
             final DateTime createdAt;
             final DateTime updatedAt;
             final bool isSynced;
             final bool isDeleted;
-          
+
             HearingModel({
               required this.id,
               required this.officeId,
@@ -146,12 +188,13 @@ workflows:
               this.notes = '',
               this.result = '',
               this.requiredActions = '',
+              this.postponements = const [],
               required this.createdAt,
               required this.updatedAt,
               this.isSynced = false,
               this.isDeleted = false,
             });
-          
+
             factory HearingModel.fromEntity(Hearing h) => HearingModel(
                   id: h.id,
                   officeId: h.officeId,
@@ -164,12 +207,13 @@ workflows:
                   notes: h.notes,
                   result: h.result,
                   requiredActions: h.requiredActions,
+                  postponements: h.postponements,
                   createdAt: h.createdAt,
                   updatedAt: h.updatedAt,
                   isSynced: h.isSynced,
                   isDeleted: h.isDeleted,
                 );
-          
+
             Hearing toEntity() => Hearing(
                   id: id,
                   officeId: officeId,
@@ -182,12 +226,13 @@ workflows:
                   notes: notes,
                   result: result,
                   requiredActions: requiredActions,
+                  postponements: postponements,
                   createdAt: createdAt,
                   updatedAt: updatedAt,
                   isSynced: isSynced,
                   isDeleted: isDeleted,
                 );
-          
+
             factory HearingModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
               final data = doc.data()!;
               return HearingModel(
@@ -202,13 +247,16 @@ workflows:
                 notes: data['notes'] as String? ?? '',
                 result: data['result'] as String? ?? '',
                 requiredActions: data['requiredActions'] as String? ?? '',
+                postponements: ((data['postponements'] as List?) ?? [])
+                    .map((e) => HearingPostponement.fromMap(Map<String, dynamic>.from(e as Map)))
+                    .toList(),
                 createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
                 updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
                 isSynced: true,
                 isDeleted: data['isDeleted'] as bool? ?? false,
               );
             }
-          
+
             Map<String, dynamic> toFirestore() => {
                   'officeId': officeId,
                   'caseId': caseId,
@@ -220,11 +268,12 @@ workflows:
                   'notes': notes,
                   'result': result,
                   'requiredActions': requiredActions,
+                  'postponements': postponements.map((p) => p.toMap()).toList(),
                   'createdAt': Timestamp.fromDate(createdAt),
                   'updatedAt': Timestamp.fromDate(updatedAt),
                   'isDeleted': isDeleted,
                 };
-          
+
             Map<String, dynamic> toHiveMap() => {
                   'id': id,
                   'officeId': officeId,
@@ -237,12 +286,13 @@ workflows:
                   'notes': notes,
                   'result': result,
                   'requiredActions': requiredActions,
+                  'postponements': postponements.map((p) => p.toMap()).toList(),
                   'createdAt': createdAt.toIso8601String(),
                   'updatedAt': updatedAt.toIso8601String(),
                   'isSynced': isSynced,
                   'isDeleted': isDeleted,
                 };
-          
+
             factory HearingModel.fromHiveMap(Map<dynamic, dynamic> map) => HearingModel(
                   id: map['id'] as String,
                   officeId: map['officeId'] as String,
@@ -255,12 +305,15 @@ workflows:
                   notes: map['notes'] as String? ?? '',
                   result: map['result'] as String? ?? '',
                   requiredActions: map['requiredActions'] as String? ?? '',
+                  postponements: ((map['postponements'] as List?) ?? [])
+                      .map((e) => HearingPostponement.fromMap(Map<String, dynamic>.from(e as Map)))
+                      .toList(),
                   createdAt: DateTime.parse(map['createdAt'] as String),
                   updatedAt: DateTime.parse(map['updatedAt'] as String),
                   isSynced: map['isSynced'] as bool? ?? false,
                   isDeleted: map['isDeleted'] as bool? ?? false,
                 );
-          
+
             HearingModel copyWith({bool? isSynced, bool? isDeleted, DateTime? updatedAt}) => HearingModel(
                   id: id,
                   officeId: officeId,
@@ -273,17 +326,19 @@ workflows:
                   notes: notes,
                   result: result,
                   requiredActions: requiredActions,
+                  postponements: postponements,
                   createdAt: createdAt,
                   updatedAt: updatedAt ?? this.updatedAt,
                   isSynced: isSynced ?? this.isSynced,
                   isDeleted: isDeleted ?? this.isDeleted,
                 );
           }
-          
+
           class HearingHiveBox {
             static const String boxName = 'hearings_box';
             static Box get box => Hive.box(boxName);
           }
+
           DARTEOF1
           cat > lib/data/repositories/hearing_repository.dart << 'DARTEOF2'
           import 'dart:async';
@@ -408,6 +463,24 @@ workflows:
           
             Future<Hearing> updateHearing(Hearing entity) async {
               final updated = entity.copyWith(updatedAt: DateTime.now(), isSynced: false);
+              await _persist(updated);
+              return updated;
+            }
+          
+            /// تأجيل الجلسة: يحفظ التاريخ القديم في سجل التأجيلات ويحدّث الجلسة للتاريخ الجديد
+            Future<Hearing> postponeHearing(Hearing hearing, DateTime newDate, String reason) async {
+              final record = HearingPostponement(
+                id: _uuid.v4(),
+                previousDate: hearing.date,
+                reason: reason,
+                postponedAt: DateTime.now(),
+              );
+              final updated = hearing.copyWith(
+                date: newDate,
+                postponements: [...hearing.postponements, record],
+                updatedAt: DateTime.now(),
+                isSynced: false,
+              );
               await _persist(updated);
               return updated;
             }
@@ -755,6 +828,93 @@ workflows:
               return '$h:${d.minute.toString().padLeft(2, '0')} $period';
             }
           
+            String _fmtDate(DateTime d) => '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+          
+            Future<void> _postponeHearing(Hearing h) async {
+              DateTime newDate = h.date.add(const Duration(days: 7));
+              final reasonCtrl = TextEditingController();
+              final result = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => StatefulBuilder(
+                  builder: (ctx, setDialogState) => AlertDialog(
+                    title: Text('تأجيل جلسة "${h.caseTitle}"'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('التاريخ الحالي: ${_fmtDate(h.date)}', style: const TextStyle(color: AppColors.textSecondaryDark)),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: newDate,
+                              firstDate: DateTime.now().subtract(const Duration(days: 3650)),
+                              lastDate: DateTime.now().add(const Duration(days: 3650)),
+                            );
+                            if (picked != null) {
+                              final time = await showTimePicker(context: ctx, initialTime: TimeOfDay.fromDateTime(h.date));
+                              setDialogState(() {
+                                newDate = time != null
+                                    ? DateTime(picked.year, picked.month, picked.day, time.hour, time.minute)
+                                    : DateTime(picked.year, picked.month, picked.day, h.date.hour, h.date.minute);
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(labelText: 'الجلسة الجديدة'),
+                            child: Text(_fmtDate(newDate)),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(controller: reasonCtrl, decoration: const InputDecoration(labelText: 'سبب التأجيل (اختياري)')),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                      ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأجيل')),
+                    ],
+                  ),
+                ),
+              );
+              if (result == true) {
+                await widget.hearingRepository.postponeHearing(h, newDate, reasonCtrl.text.trim());
+              }
+            }
+          
+            Future<void> _showHistory(Hearing h) async {
+              await showDialog<void>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text('تسلسل جلسة "${h.caseTitle}"'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        ...h.postponements.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final p = entry.value;
+                          return ListTile(
+                            dense: true,
+                            leading: CircleAvatar(radius: 12, child: Text('${i + 1}', style: const TextStyle(fontSize: 11))),
+                            title: Text(_fmtDate(p.previousDate)),
+                            subtitle: p.reason.isEmpty ? null : Text(p.reason),
+                          );
+                        }),
+                        ListTile(
+                          dense: true,
+                          leading: CircleAvatar(radius: 12, backgroundColor: AppColors.gold, child: Text('${h.sequenceNumber}', style: const TextStyle(fontSize: 11, color: AppColors.black))),
+                          title: Text('${_fmtDate(h.date)} (الحالية)', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+                ),
+              );
+            }
+          
             Future<void> _confirmDelete(Hearing h) async {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -845,12 +1005,26 @@ workflows:
                                             backgroundColor: AppColors.gold.withOpacity(0.15),
                                             child: Text(_fmtTime(h.date).split(' ')[0], style: const TextStyle(fontSize: 11, color: AppColors.gold, fontWeight: FontWeight.w700)),
                                           ),
-                                          title: Text(h.caseTitle, style: const TextStyle(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+                                          title: Text('${h.caseTitle}${h.sequenceNumber > 1 ? ' - جلسة ${h.sequenceNumber}' : ''}', style: const TextStyle(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
                                           subtitle: Text('${h.clientName} • ${h.court}${h.location.isNotEmpty ? ' • ${h.location}' : ''}\n${_fmtTime(h.date)}'),
                                           isThreeLine: true,
-                                          trailing: IconButton(
-                                            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
-                                            onPressed: () => _confirmDelete(h),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (h.postponements.isNotEmpty)
+                                                IconButton(
+                                                  icon: const Icon(Icons.history, color: AppColors.info, size: 20),
+                                                  onPressed: () => _showHistory(h),
+                                                ),
+                                              IconButton(
+                                                icon: const Icon(Icons.update, color: AppColors.warning, size: 20),
+                                                onPressed: () => _postponeHearing(h),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                                                onPressed: () => _confirmDelete(h),
+                                              ),
+                                            ],
                                           ),
                                           onTap: () => Navigator.push(
                                             context,
