@@ -460,12 +460,16 @@ workflows:
                 operation: SyncOperation.update,
                 payload: model.toFirestore(),
               );
-              await NotificationService.instance.scheduleHearingReminders(
-                hearingId: entity.id,
-                hearingDate: entity.date,
-                title: 'تذكير بجلسة قادمة',
-                body: '${entity.caseTitle} - ${entity.clientName} - ${entity.court}',
-              );
+              try {
+                await NotificationService.instance.scheduleHearingReminders(
+                  hearingId: entity.id,
+                  hearingDate: entity.date,
+                  title: 'تذكير بجلسة قادمة',
+                  body: '${entity.caseTitle} - ${entity.clientName} - ${entity.court}',
+                );
+              } catch (_) {
+                // أي خطأ في جدولة التنبيه لا يجب أن يمنع حفظ الجلسة نفسها
+              }
             }
           
             Future<Hearing> updateHearing(Hearing entity) async {
@@ -508,15 +512,7 @@ workflows:
                 postponedAt: DateTime.now(),
               );
           
-              // 1) الجلسة القديمة: تسجيل قرار التأجيل في خانة النتيجة بدون تغيير تاريخها
-              final closedOld = hearing.copyWith(
-                result: 'تأجلت لجلسة ${fmt(newDate)} لسبب $effectiveReason',
-                updatedAt: DateTime.now(),
-                isSynced: false,
-              );
-              await _persist(closedOld);
-          
-              // 2) جلسة جديدة منفصلة تمامًا بالتاريخ الجديد
+              // 1) جلسة جديدة منفصلة تمامًا بالتاريخ الجديد - نحفظها أولاً لضمان تسجيلها
               final now = DateTime.now();
               final newHearing = Hearing(
                 id: _uuid.v4(),
@@ -533,6 +529,15 @@ workflows:
                 isSynced: false,
               );
               await _persist(newHearing);
+          
+              // 2) الجلسة القديمة: تسجيل قرار التأجيل في خانة النتيجة بدون تغيير تاريخها
+              final closedOld = hearing.copyWith(
+                result: 'تأجلت لجلسة ${fmt(newDate)} لسبب $effectiveReason',
+                updatedAt: DateTime.now(),
+                isSynced: false,
+              );
+              await _persist(closedOld);
+          
               return newHearing;
             }
           
@@ -743,19 +748,7 @@ workflows:
                     notes: _notesCtrl.text.trim(),
                   );
                 }
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Row(children: [
-                        Icon(Icons.check_circle, color: Colors.white),
-                        SizedBox(width: 10),
-                        Text('تمت جدولة الجلسة وإضافتها للتقويم بنجاح'),
-                      ]),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  Navigator.of(context).pop();
-                }
+                if (mounted) Navigator.of(context).pop(true);
               } finally {
                 if (mounted) setState(() => _saving = false);
               }
@@ -954,7 +947,27 @@ workflows:
                 ),
               );
               if (result == true) {
-                await widget.hearingRepository.postponeHearing(h, newDate, reasonCtrl.text.trim());
+                try {
+                  await widget.hearingRepository.postponeHearing(h, newDate, reasonCtrl.text.trim());
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Row(children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 10),
+                          Text('تم تأجيل الجلسة وجدولة الجلسة الجديدة بنجاح'),
+                        ]),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('حصل خطأ أثناء التأجيل: $e'), backgroundColor: AppColors.danger),
+                    );
+                  }
+                }
               }
             }
           
@@ -1013,7 +1026,7 @@ workflows:
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                appBar: AppBar(title: const Text('الجلسات')),
+                appBar: AppBar(title: const Text('الجلسات (نسخة تجريبية v3)')),
                 body: SafeArea(
                   child: StreamBuilder<List<Hearing>>(
                     stream: widget.hearingRepository.watchAll(),
@@ -1082,7 +1095,10 @@ workflows:
                                             child: Text(_fmtTime(h.date).split(' ')[0], style: const TextStyle(fontSize: 11, color: AppColors.gold, fontWeight: FontWeight.w700)),
                                           ),
                                           title: Text('${h.caseTitle}${h.sequenceNumber > 1 ? ' - جلسة ${h.sequenceNumber}' : ''}', style: const TextStyle(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
-                                          subtitle: Text('${h.clientName} • ${h.court}${h.location.isNotEmpty ? ' • ${h.location}' : ''}\n${_fmtTime(h.date)}'),
+                                          subtitle: Text(
+                                            '${h.clientName} • ${h.court}${h.location.isNotEmpty ? ' • ${h.location}' : ''}\n${_fmtTime(h.date)}${h.result.isNotEmpty ? '\n⏱ ${h.result}' : ''}',
+                                            style: h.result.isNotEmpty ? const TextStyle(color: AppColors.warning, fontWeight: FontWeight.w600) : null,
+                                          ),
                                           isThreeLine: true,
                                           trailing: Row(
                                             mainAxisSize: MainAxisSize.min,
